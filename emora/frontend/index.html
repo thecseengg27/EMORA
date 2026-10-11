@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EMORA — Emotion-Aware Learning Agent</title>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto 80px; padding: 0 16px; color: #1a1a1a; line-height: 1.5; }
+  h1 { font-size: 1.5rem; margin: 0 0 8px; } h2 { font-size: 1.2rem; margin: 6px 0 10px; } h3 { margin: 16px 0 6px; font-size: 1rem; }
+  button { padding: 9px 15px; border-radius: 8px; border: 1px solid #c9ccd1; background: #f5f6f8; cursor: pointer; font-size: 0.95rem; margin: 4px 6px 4px 0; }
+  button:hover:not(:disabled) { background: #e9ebef; } button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: #2f6fed; border-color: #2f6fed; color: #fff; } button.primary:hover:not(:disabled) { background: #2559c4; }
+  input[type=text] { padding: 9px 10px; width: 100%; max-width: 380px; border-radius: 8px; border: 1px solid #c9ccd1; font-size: 1rem; }
+  video { width: 220px; border-radius: 10px; background: #000; display: block; }
+  .card { border: 1px solid #dfe2e7; border-radius: 12px; padding: 18px; margin-top: 16px; background: #fff; }
+  .row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  #privacy { font-size: .82rem; color: #4a5a4a; background: #f2f8f2; border: 1px solid #d3e5d3; padding: 8px 12px; border-radius: 8px; margin: 10px 0; }
+  #status, .muted { font-size: .82rem; color: #777; }
+  #state-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; background: #eee; font-weight: 600; }
+  #error { background: #fdecec; border: 1px solid #f3b9b9; color: #8a1f1f; padding: 10px 14px; border-radius: 8px; margin-top: 14px; }
+  #loading { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: #eef3ff; color: #234; }
+  .hud { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  .pill { padding: 5px 12px; border-radius: 16px; background: #f1f2f5; font-size: .85rem; border: 2px solid transparent; }
+  .pill.done { background: #dff3e4; } .pill.cur { border-color: #2f6fed; background: #eaf0ff; font-weight: 600; }
+  .approach { border-left: 5px solid #7d8590; background: #f7f8fa; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
+  .chip { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .78rem; color: #fff; margin: 2px 4px 2px 0; }
+  .blk { white-space: pre-wrap; margin: 8px 0; }
+  .analogy { background: #fff8e6; border: 1px solid #f2dfa6; padding: 10px 12px; border-radius: 8px; margin: 10px 0; white-space: pre-wrap; }
+  .tip { background: #eef8f0; border: 1px solid #cfe8d5; padding: 10px 12px; border-radius: 8px; margin: 10px 0; white-space: pre-wrap; }
+  pre { background: #0f1724; color: #e6edf3; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: .88rem; margin: 8px 0; }
+  .enc { color: #2a6b3a; font-weight: 600; }
+  .src { margin-top: 10px; font-size: .82rem; color: #666; } .src a { margin-right: 10px; }
+  .game { border: 2px dashed #b9c6ee; background: #fafbff; }
+  .opt, .codeline, .poolbtn { display: block; width: 100%; text-align: left; margin: 6px 0; }
+  .opt.sel, .codeline.sel { border-color: #2f6fed; background: #eaf0ff; }
+  .codeline { font-family: ui-monospace, Consolas, monospace; font-size: .88rem; background: #f4f5f7; border: 1px solid #dfe2e7; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .seq { min-height: 44px; border: 2px dashed #c9d3f0; border-radius: 8px; padding: 6px; margin: 8px 0; }
+  .seq button { display: block; width: 100%; text-align: left; background: #eaf0ff; }
+  .poolbtn { width: auto; display: inline-block; }
+  .locked { pointer-events: none; opacity: .75; }
+  .fb { border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
+  .fb.good { background: #e8f6ec; border: 1px solid #b8dfc3; } .fb.bad { background: #fdf0e6; border: 1px solid #f0cfae; }
+  .metrics { display: flex; gap: 10px; flex-wrap: wrap; }
+  .metric { background: #f6f7f9; border-radius: 8px; padding: 8px 14px; min-width: 88px; } .metric b { display: block; font-size: 1.25rem; } .metric small { color: #666; }
+  .bar { height: 10px; background: #eceef2; border-radius: 6px; overflow: hidden; } .bar > div { height: 100%; background: #2da44e; }
+  .mrow { display: grid; grid-template-columns: 200px 1fr 70px; gap: 10px; align-items: center; margin: 6px 0; font-size: .88rem; }
+  .dot { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 3px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1>EMORA — Emotion-Aware Learning Agent</h1>
+<div id="privacy">
+  🔒 Privacy: webcam frames are analysed locally in your browser and are never uploaded or stored. Only a simple label
+  (e.g. "confused") reaches the backend, and it is an estimate of an observable expression — not a measurement of what you feel.
+  Your topic text is sent to the AI tutor and to live web search.
+</div>
+
+<div class="row">
+  <div>
+    <video id="webcam" autoplay muted playsinline></video>
+    <div id="status">Starting…</div>
+    <div class="muted" style="margin-top:6px">
+      Learner-state signal: <span id="state-badge">neutral</span><br/>
+      <span id="raw">Raw expression: —</span><br/>
+      Mode: <b id="mode">Auto (webcam)</b><br/>
+      <button onclick="resumeAuto()">Auto</button>
+      <button onclick="manual('neutral')">Neutral</button>
+      <button onclick="manual('confused')">Confused</button>
+      <button onclick="manual('frustrated')">Frustrated</button>
+      <button onclick="manual('positive')">Engaged</button>
+    </div>
+  </div>
+  <div style="flex:1; min-width:260px">
+    <label for="topic"><b>What do you want to learn?</b></label><br/>
+    <input id="topic" type="text" value="Java Recursion" />
+    <div>
+      <button id="startBtn" class="primary" onclick="startLearning()">Start learning</button>
+      <button onclick="resetAll()">New topic</button>
+    </div>
+    <div id="resume"></div>
+    <div class="hud" id="hud"></div>
+  </div>
+</div>
+
+<div id="error" hidden></div>
+<div id="loading" hidden></div>
+<div id="stepbar" class="hud"></div>
+
+<div id="teach" class="card" hidden></div>
+<div id="activity" class="card game" hidden></div>
+<div id="summary" class="card" hidden></div>
+
+<div id="progress" class="card" hidden>
+  <h2 style="margin-top:0">Your progress</h2>
+  <div class="metrics" id="metrics"></div>
+  <h3>How EMORA adapted <span class="muted">(learner state chosen each turn)</span></h3>
+  <div id="timeline" class="muted">—</div>
+  <h3>Mastery by step</h3>
+  <div id="mastery" class="muted">—</div>
+  <h3>Answer history <span class="muted">(green = correct, red = missed)</span></h3>
+  <div id="history" class="muted">—</div>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
+const STATE_COLORS = { confused: "#e08a00", frustrated: "#d64545", neutral: "#7d8590", engaged: "#2da44e" };
+const GAME = { mcq: "🎯 Quick Quiz", order: "🧩 Sequence Builder", find_bug: "🐞 Bug Hunt", fill_blank: "✏️ Fill the Gap" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- run id (one learning journey), kept in this browser ----------
+let RUN_ID = null;
+try { RUN_ID = localStorage.getItem("emora_run"); } catch (e) {}
+function saveRun(id) {
+  RUN_ID = id;
+  try { id ? localStorage.setItem("emora_run", id) : localStorage.removeItem("emora_run"); } catch (e) {}
+}
+
+// ---------- learner-state signal (webcam or manual) ----------
+let currentExpression = "neutral";
+let autoMode = true;
+const recent = [];
+const WINDOW = 8;
+function showState(s) { currentExpression = s; $("state-badge").innerText = s; }
+function manual(s) { autoMode = false; $("mode").innerText = "Manual override"; showState(s); }
+function resumeAuto() { autoMode = true; $("mode").innerText = "Auto (webcam)"; }
+function mapExpression(e) {           // heuristic mapping, not ground truth
+  if (e === "sad" || e === "fearful") return "confused";
+  if (e === "angry" || e === "disgusted") return "frustrated";
+  if (e === "happy") return "positive";
+  return "neutral";
+}
+function smooth() {
+  const score = {};
+  recent.forEach(p => { score[p.label] = (score[p.label] || 0) + p.conf; });
+  return Object.entries(score).sort((a, b) => b[1] - a[1])[0][0];
+}
+async function initWebcam() {
+  $("status").innerText = "Loading expression model…";
+  try {
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)]);
+    $("webcam").srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+    $("webcam").addEventListener("playing", startDetectionLoop);
+    $("status").innerText = "Webcam active — analysing locally";
+  } catch (err) {
+    console.warn(err);
+    $("status").innerText = "Webcam/model unavailable — use the manual buttons";
+    manual("neutral");
+  }
+}
+function startDetectionLoop() {
+  setInterval(async () => {
+    if (!autoMode) return;
+    const det = await faceapi.detectSingleFace($("webcam"), new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+    if (!det) { $("status").innerText = "No face detected"; return; }
+    $("status").innerText = "Webcam active — analysing locally";
+    const [top, conf] = Object.entries(det.expressions).sort((a, b) => b[1] - a[1])[0];
+    const label = mapExpression(top);
+    $("raw").innerText = `Raw expression: ${top} (${conf.toFixed(2)}) → ${label}`;
+    recent.push({ label, conf });
+    if (recent.length > WINDOW) recent.shift();
+    showState(smooth());
+  }, 600);
+}
+
+// ---------- helpers ----------
+async function api(path, body) {
+  let res;
+  try {
+    res = await fetch(API_BASE + path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  } catch (e) { throw new Error("Can't reach the backend — is the FastAPI server running on port 8000?"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Request failed (" + res.status + ")");
+  return data;
+}
+function setBusy(msg) {
+  $("loading").hidden = !msg; $("loading").innerText = msg ? "⏳ " + msg : "";
+  document.querySelectorAll("button").forEach(b => { if (msg) b.dataset.was = b.disabled; b.disabled = msg ? true : (b.dataset.was === "true"); });
+}
+function showError(m) { $("error").hidden = false; $("error").innerText = m; }
+async function run(msg, fn) {
+  $("error").hidden = true; setBusy(msg);
+  try { await fn(); } catch (e) { showError(e.message); } finally { setBusy(null); }
+}
+function hideLesson() { ["teach", "activity", "summary"].forEach(i => { $(i).hidden = true; }); }
+function resetAll() { saveRun(null); hideLesson(); $("progress").hidden = true; $("stepbar").innerHTML = ""; $("hud").innerHTML = ""; $("resume").innerHTML = ""; $("error").hidden = true; }
+
+// ---------- learning flow ----------
+let cur = null, assessQs = [], assessIdx = 0;
+
+function startLearning() {
+  const topic = $("topic").value.trim();
+  if (!topic) return;
+  run("EMORA is searching the live web and planning your learning path…", async () => {
+    const s = await api("/api/learn/start", { topic });
+    saveRun(s.run_id); hideLesson(); $("resume").innerHTML = "";
+    await fetchTurn();
+  });
+}
+
+async function fetchTurn() {
+  setBusy("EMORA is choosing how to teach this step…");
+  const t = await api("/api/learn/next", { run_id: RUN_ID, expression_signal: currentExpression });
+  if (t.done) { await startAssessment(); return; }
+  renderTurn(t);
+  await loadProgress();
+}
+
+function renderBlock(b) {
+  const cap = b.caption ? `<div class="muted">${esc(b.caption)}</div>` : "";
+  if (b.kind === "code") return `<pre>${esc(b.text)}</pre>${cap}`;
+  if (b.kind === "analogy") return `<div class="analogy">💡 ${esc(b.text)}</div>`;
+  if (b.kind === "tip") return `<div class="tip">✨ ${esc(b.text)}</div>`;
+  return `<div class="blk">${esc(b.text)}</div>`;
+}
+
+function renderTurn(t) {
+  const color = STATE_COLORS[t.state] || "#7d8590";
+  const links = t.sources.map(s => `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join("");
+  $("teach").hidden = false; $("summary").hidden = true;
+  $("teach").innerHTML = `
+    <div class="approach" style="border-color:${color}">
+      <span class="chip" style="background:${color}">${esc(t.state)}</span><b>${esc(t.approach)}</b>
+      <span class="muted"> · step ${t.step_idx + 1} of ${t.total_steps}: ${esc(t.step_title)}</span><br/>
+      <span class="muted">${esc(t.note)}</span>
+    </div>
+    <h2>${esc(t.title)}</h2>
+    ${t.blocks.map(renderBlock).join("")}
+    ${t.encouragement ? `<p class="enc">${esc(t.encouragement)}</p>` : ""}
+    <div class="src">🔎 Live search: <i>${esc(t.search.query)}</i>${t.search.ok ? "" : " — search unavailable (" + esc(t.search.error || "error") + "), taught from the tutor's own knowledge"}
+      ${links ? "<br/>Sources used: " + links : ""}</div>`;
+  renderActivity(t.activity, "practice", "");
+  $("teach").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------- games / quizzes ----------
+function renderActivity(a, kind, heading) {
+  cur = { a, kind, hintUsed: false, start: Date.now(), sel: null, seq: [] };
+  const title = (kind === "assessment" ? "👾 Boss Level — " : "") + GAME[a.type];
+  $("activity").hidden = false;
+  $("activity").innerHTML = `
+    <h2>${title} ${heading ? `<span class="muted">${esc(heading)}</span>` : ""}</h2>
+    <p><b>${esc(a.prompt)}</b></p>
+    <div id="act-body"></div>
+    <div id="hintBox" class="tip" hidden></div>
+    <div id="actions">
+      <button id="hintBtn" ${a.hint ? "" : "disabled"}>💡 Hint (halves XP)</button>
+      <button id="checkBtn" class="primary" disabled>Check answer</button>
+    </div>
+    <div id="feedback"></div>`;
+  $("hintBtn").onclick = () => { cur.hintUsed = true; $("hintBox").hidden = false; $("hintBox").innerText = "💡 " + a.hint; };
+  $("checkBtn").onclick = submitAnswer;
+  drawBody();
+}
+
+function setSel(v, ok = true) { cur.sel = v; $("checkBtn").disabled = !ok; }
+
+function drawBody() {
+  const a = cur.a, body = $("act-body");
+  if (a.type === "mcq") {
+    body.innerHTML = (a.code ? `<pre>${esc(a.code)}</pre>` : "") + a.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join("");
+    body.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+      body.querySelectorAll(".opt").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); setSel(+b.dataset.i);
+    });
+  } else if (a.type === "find_bug") {
+    body.innerHTML = a.lines.map((l, i) => `<div class="codeline" data-i="${i}">${i + 1}&nbsp;&nbsp;${esc(l)}</div>`).join("");
+    body.querySelectorAll(".codeline").forEach(d => d.onclick = () => {
+      body.querySelectorAll(".codeline").forEach(x => x.classList.remove("sel")); d.classList.add("sel"); setSel(+d.dataset.i);
+    });
+  } else if (a.type === "fill_blank") {
+    body.innerHTML = `<pre>${esc(a.template)}</pre><input id="blank" type="text" placeholder="Type what goes in the blank" autocomplete="off" />`;
+    $("blank").oninput = e => setSel(e.target.value.trim(), e.target.value.trim().length > 0);
+  } else {   // order: click items to build the sequence
+    drawOrder();
+  }
+}
+
+function drawOrder() {
+  const a = cur.a, body = $("act-body");
+  const pool = a.items.map((t, i) => cur.seq.includes(i) ? "" : `<button class="poolbtn" data-i="${i}">${esc(t)}</button>`).join("");
+  body.innerHTML = `<div class="muted">Click the steps in the right order:</div><div>${pool || '<span class="muted">All placed.</span>'}</div>
+    <div class="seq">${cur.seq.length ? cur.seq.map((i, n) => `<button data-s="${n}">${n + 1}. ${esc(a.items[i])}</button>`).join("") : '<span class="muted">Your sequence appears here (click an item to remove it)</span>'}</div>
+    <button id="resetSeq">↺ Reset</button>`;
+  body.querySelectorAll(".poolbtn").forEach(b => b.onclick = () => { cur.seq.push(+b.dataset.i); drawOrder(); });
+  body.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { cur.seq.splice(+b.dataset.s, 1); drawOrder(); });
+  $("resetSeq").onclick = () => { cur.seq = []; drawOrder(); };
+  setSel(cur.seq.slice(), cur.seq.length === a.items.length);
+}
+
+function submitAnswer() {
+  const a = cur.a;
+  const response = a.type === "order" ? cur.seq.map(i => a.items[i]) : cur.sel;
+  const seconds = (Date.now() - cur.start) / 1000;
+  run("Checking your answer…", async () => {
+    const r = await api("/api/learn/answer", { run_id: RUN_ID, activity_id: a.id, response, hint_used: cur.hintUsed, response_seconds: seconds });
+    $("act-body").classList.add("locked"); $("actions").hidden = true;
+    showFeedback(r); await loadProgress();
+  });
+}
+
+function showFeedback(r) {
+  const practice = cur.kind === "practice";
+  let label, handler;
+  if (practice) {
+    if (!r.correct) { label = "Try a different approach →"; handler = () => run("EMORA is re-teaching this from a new angle…", fetchTurn); }
+    else if (r.finished_curriculum) { label = "Start the boss level 👾"; handler = () => run("Building your boss-level assessment…", startAssessment); }
+    else { label = "Next step →"; handler = () => run("EMORA is choosing how to teach the next step…", fetchTurn); }
+  } else {
+    assessIdx++;
+    if (assessIdx < assessQs.length) { label = "Next question →"; handler = renderAssessmentQ; }
+    else { label = "See my results 🏁"; handler = () => run("Wrapping up…", showSummary); }
+  }
+  $("feedback").innerHTML = `<div class="fb ${r.correct ? "good" : "bad"}">
+      <b>${r.correct ? "✅ Correct!" : "❌ Not quite."}</b>
+      ${r.xp_gained ? ` +${r.xp_gained} XP` : ""}${r.streak > 1 ? ` · 🔥 ${r.streak} in a row` : ""}
+      <p>${esc(r.explanation)}</p>
+      ${r.correct ? "" : `<p><b>Answer:</b> ${esc(r.correct_answer)}</p>`}
+      ${!r.correct && practice ? "<p>No worries — EMORA will re-teach this from a different angle.</p>" : ""}
+      <button id="nextBtn" class="primary">${label}</button></div>`;
+  $("nextBtn").onclick = handler;
+  $("feedback").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ---------- boss-level assessment + summary ----------
+async function startAssessment() {
+  setBusy("Building your boss-level assessment…");
+  const r = await api("/api/learn/assessment", { run_id: RUN_ID });
+  assessQs = r.questions; assessIdx = 0;
+  $("teach").hidden = false; $("summary").hidden = true;
+  $("teach").innerHTML = `<h2>👾 Boss Level</h2><p>You finished every step. Now show what you've learned: ${assessQs.length} mixed challenges,
+    no re-teaching this time. Hints still work (for half XP).</p>`;
+  renderAssessmentQ();
+  await loadProgress();
+}
+function renderAssessmentQ() { renderActivity(assessQs[assessIdx], "assessment", `Question ${assessIdx + 1} of ${assessQs.length}`); $("activity").scrollIntoView({ behavior: "smooth" }); }
+
+function masteryHtml(p) {
+  return p.step_mastery.map(m => {
+    const pct = m.attempts ? Math.round(100 * m.correct / m.attempts) : 0;
+    const flag = m.attempts && pct < 60 ? " ⚠ review" : "";
+    return `<div class="mrow"><span>${esc(m.title)}</span><div class="bar"><div style="width:${pct}%"></div></div><span>${m.attempts ? pct + "%" : "—"}${flag}</span></div>`;
+  }).join("");
+}
+
+async function showSummary() {
+  const p = await api("/api/progress/" + RUN_ID);
+  const counts = {}; p.timeline.forEach(t => { counts[t.state] = (counts[t.state] || 0) + 1; });
+  hideLesson(); $("summary").hidden = false;
+  $("summary").innerHTML = `<h2>🏁 Results — ${esc(p.topic)}</h2>
+    <div class="metrics">
+      <div class="metric"><b>${p.assessment.correct}/${p.assessment.attempts}</b><small>boss level</small></div>
+      <div class="metric"><b>${p.xp}</b><small>XP earned</small></div>
+      <div class="metric"><b>${p.accuracy == null ? "—" : Math.round(p.accuracy * 100) + "%"}</b><small>overall accuracy</small></div>
+    </div>
+    <h3>Mastery by step</h3>${masteryHtml(p)}
+    <h3>How EMORA adapted to you</h3>
+    <div>${Object.entries(counts).map(([s, n]) => `<span class="chip" style="background:${STATE_COLORS[s] || "#7d8590"}">${esc(s)} × ${n}</span>`).join("")}</div>
+    <p class="muted">Steps marked ⚠ are worth reviewing. Start a new topic any time.</p>
+    <button class="primary" onclick="resetAll()">Learn another topic</button>`;
+  await loadProgress();
+}
+
+// ---------- progress ----------
+async function loadProgress() {
+  if (!RUN_ID) return;
+  try { renderProgress(await api("/api/progress/" + RUN_ID)); } catch (e) { console.warn(e); }
+}
+function renderProgress(p) {
+  $("progress").hidden = false;
+  $("hud").innerHTML = `<span class="pill">⭐ ${p.xp} XP</span><span class="pill">🔥 streak ${p.streak}</span><span class="pill">📘 ${esc(p.topic)}</span>`;
+  $("stepbar").innerHTML = p.steps.map((s, i) => `<span class="pill ${i < p.step_idx ? "done" : i === p.step_idx ? "cur" : ""}">${i < p.step_idx ? "✓ " : ""}${i + 1}. ${esc(s)}</span>`).join("");
+  const acc = p.accuracy == null ? "—" : Math.round(p.accuracy * 100) + "%";
+  const avg = p.avg_seconds == null ? "—" : p.avg_seconds.toFixed(0) + "s";
+  $("metrics").innerHTML = `<div class="metric"><b>${p.xp}</b><small>XP</small></div><div class="metric"><b>${p.attempts}</b><small>answers</small></div>
+    <div class="metric"><b>${acc}</b><small>accuracy</small></div><div class="metric"><b>${avg}</b><small>avg time</small></div>`;
+  $("timeline").innerHTML = p.timeline.length
+    ? p.timeline.map((t, i) => `<span class="chip" style="background:${STATE_COLORS[t.state] || "#7d8590"}" title="${esc(t.step)} · ${esc(t.approach)}">${i + 1}. ${esc(t.state)}</span>`).join("") : "—";
+  $("mastery").innerHTML = masteryHtml(p);
+  $("history").innerHTML = p.history.length
+    ? p.history.map(h => `<span class="dot" style="background:${h.correct ? "#2da44e" : "#d64545"}" title="${esc(h.kind)}"></span>`).join("") : "—";
+}
+
+async function init() {
+  initWebcam();
+  $("topic").addEventListener("keydown", e => { if (e.key === "Enter") startLearning(); });
+  if (!RUN_ID) return;
+  try {
+    const p = await api("/api/progress/" + RUN_ID);
+    renderProgress(p);
+    const done = p.step_idx >= p.steps.length;
+    $("resume").innerHTML = `<button id="resumeBtn">▶ Continue “${esc(p.topic)}” (${done ? "boss level" : "step " + (p.step_idx + 1) + " of " + p.steps.length})</button>`;
+    $("resumeBtn").onclick = () => run("Picking up where you left off…", async () => { $("resume").innerHTML = ""; done ? await startAssessment() : await fetchTurn(); });
+  } catch (e) { saveRun(null); }
+}
+init();
+</script>
+</body>
+</html>
